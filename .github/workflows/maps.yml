@@ -33,6 +33,7 @@ jobs:
     timeout-minutes: 120
     strategy:
       fail-fast: false
+      max-parallel: 3          # the map server refuses too many downloads at once
       matrix:
         include:
           - { id: AZ, region: arizona }
@@ -63,7 +64,7 @@ jobs:
           pip install osmium numpy scipy
       - name: Download OpenStreetMap extract
         if: steps.check.outputs.skip != 'true'
-        run: curl -L --fail --retry 3 -o region.osm.pbf "https://download.geofabrik.de/north-america/us/${{ matrix.region }}-latest.osm.pbf"
+        run: curl -L --fail --retry 8 --retry-all-errors --retry-delay 30 --connect-timeout 30 -o region.osm.pbf "https://download.geofabrik.de/north-america/us/${{ matrix.region }}-latest.osm.pbf"
       - name: Keep only roads, places and addresses
         if: steps.check.outputs.skip != 'true'
         run: |
