@@ -1,0 +1,55 @@
+name: Build map packs
+
+# Turns OpenStreetMap extracts into OffRoute packs and publishes them as release "maps-v1".
+# The app downloads the packs from that release. Run by hand; re-run any time to refresh the maps.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  GH_TOKEN: ${{ github.token }}
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Make sure the release exists
+        run: |
+          gh release view maps-v1 -R "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+          gh release create maps-v1 -R "$GITHUB_REPOSITORY" --title "Offline map packs" \
+            --notes "Road and search data for OffRoute. Map data (c) OpenStreetMap contributors, Open Database License (ODbL) 1.0. https://www.openstreetmap.org/copyright"
+
+  pack:
+    needs: release
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { id: AZ, region: arizona }
+          - { id: CO, region: colorado }
+          - { id: MA, region: massachusetts }
+          - { id: CA, region: california }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y osmium-tool
+          pip install osmium numpy scipy
+      - name: Download OpenStreetMap extract
+        run: curl -L --fail --retry 3 -o region.osm.pbf "https://download.geofabrik.de/north-america/us/${{ matrix.region }}-latest.osm.pbf"
+      - name: Keep only roads, places and addresses
+        run: |
+          osmium tags-filter region.osm.pbf w/highway n/place n/amenity n/tourism n/shop n/leisure \
+            nw/addr:housenumber -o filtered.osm.pbf
+          rm region.osm.pbf
+      - name: Build pack
+        run: |
+          python tools/build_pack.py filtered.osm.pbf ${{ matrix.id }}
+          python tools/check_pack.py ${{ matrix.id }}.roads
+          ls -la ${{ matrix.id }}.*
+      - name: Publish
+        run: gh release upload maps-v1 ${{ matrix.id }}.roads ${{ matrix.id }}.search.sqlite --clobber -R "$GITHUB_REPOSITORY"
