@@ -1,9 +1,15 @@
 name: Build map packs
 
 # Turns OpenStreetMap extracts into OffRoute packs and publishes them as release "maps-v1".
-# The app downloads the packs from that release. Run by hand; re-run any time to refresh the maps.
+# The app downloads the packs from that release. Run by hand. States already in the release are
+# skipped unless "rebuild" is ticked.
 on:
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: "Rebuild states that are already published (refresh map data)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -38,22 +44,38 @@ jobs:
           - { id: LA, region: louisiana }
           - { id: TN, region: tennessee }
     steps:
+      - name: Skip if this state is already published
+        id: check
+        run: |
+          names=$(gh release view maps-v1 -R "$GITHUB_REPOSITORY" --json assets -q '.assets[].name')
+          if [ "${{ inputs.rebuild }}" != "true" ] \
+             && echo "$names" | grep -qx "${{ matrix.id }}.roads" \
+             && echo "$names" | grep -qx "${{ matrix.id }}.search.sqlite"; then
+            echo "${{ matrix.id }} is already published, skipping."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/checkout@v4
+        if: steps.check.outputs.skip != 'true'
       - name: Install tools
+        if: steps.check.outputs.skip != 'true'
         run: |
           sudo apt-get update && sudo apt-get install -y osmium-tool
           pip install osmium numpy scipy
       - name: Download OpenStreetMap extract
+        if: steps.check.outputs.skip != 'true'
         run: curl -L --fail --retry 3 -o region.osm.pbf "https://download.geofabrik.de/north-america/us/${{ matrix.region }}-latest.osm.pbf"
       - name: Keep only roads, places and addresses
+        if: steps.check.outputs.skip != 'true'
         run: |
           osmium tags-filter region.osm.pbf w/highway n/place n/amenity n/tourism n/shop n/leisure \
             nw/addr:housenumber -o filtered.osm.pbf
           rm region.osm.pbf
       - name: Build pack
+        if: steps.check.outputs.skip != 'true'
         run: |
           python tools/build_pack.py filtered.osm.pbf ${{ matrix.id }}
           python tools/check_pack.py ${{ matrix.id }}.roads
           ls -la ${{ matrix.id }}.*
       - name: Publish
+        if: steps.check.outputs.skip != 'true'
         run: gh release upload maps-v1 ${{ matrix.id }}.roads ${{ matrix.id }}.search.sqlite --clobber -R "$GITHUB_REPOSITORY"
