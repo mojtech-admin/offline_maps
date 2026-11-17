@@ -249,15 +249,20 @@ def build(src, prefix):
     pos = np.nonzero(is_node)[0]
     same = way_of[pos[:-1]] == way_of[pos[1:]]
     p0, p1 = pos[:-1][same], pos[1:][same]
+    seg = haversine(lat[:-1] / SCALE, lon[:-1] / SCALE, lat[1:] / SCALE, lon[1:] / SCALE)
+    cum = np.concatenate(([0.0], np.cumsum(seg)))
+    raw_len = cum[p1] - cum[p0]
+    # OSM sometimes repeats a node inside a way: that gives a zero-length loop, which is dropped.
+    keep = ~((inverse[p0] == inverse[p1]) & (raw_len < 0.05))
+    p0, p1, raw_len = p0[keep], p1[keep], raw_len[keep]
     e_way = way_of[p0]
     e_a = u_node_id[inverse[p0]].astype("<u4")
     e_b = u_node_id[inverse[p1]].astype("<u4")
     e_pstart = p0.astype("<u4")
     e_pcount = (p1 - p0 + 1)
     assert e_pcount.max() < 65536
-    seg = haversine(lat[:-1] / SCALE, lon[:-1] / SCALE, lat[1:] / SCALE, lon[1:] / SCALE)
-    cum = np.concatenate(([0.0], np.cumsum(seg)))
-    e_len = (cum[p1] - cum[p0]).astype("<f4")
+    # two different nodes mapped at the same spot still join roads; give the link a token length
+    e_len = np.maximum(raw_len, 0.1).astype("<f4")
     e_cls = np.frombuffer(col.way_cls, dtype=np.uint8)[e_way]
     e_flags = np.frombuffer(col.way_flags, dtype=np.uint8)[e_way]
     edge_count = len(e_a)
