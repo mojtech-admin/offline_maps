@@ -33,6 +33,10 @@ jobs:
           - { id: CO, region: colorado }
           - { id: MA, region: massachusetts }
           - { id: CA, region: california }
+          - { id: NV, region: nevada }
+          - { id: NM, region: new-mexico }
+          - { id: LA, region: louisiana }
+          - { id: TN, region: tennessee }
     steps:
       - uses: actions/checkout@v4
       - name: Install tools

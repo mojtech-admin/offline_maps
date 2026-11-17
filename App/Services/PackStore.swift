@@ -13,7 +13,11 @@ struct StateInfo: Identifiable, Hashable {
         StateInfo(id: "AZ", name: "Arizona", center: Coord(lat: 33.4484, lon: -112.0740), declination: 9.5),
         StateInfo(id: "CA", name: "California", center: Coord(lat: 34.0522, lon: -118.2437), declination: 11.5),
         StateInfo(id: "CO", name: "Colorado", center: Coord(lat: 39.7392, lon: -104.9903), declination: 7.5),
+        StateInfo(id: "LA", name: "Louisiana", center: Coord(lat: 29.9511, lon: -90.0715), declination: -1.0),
         StateInfo(id: "MA", name: "Massachusetts", center: Coord(lat: 42.3601, lon: -71.0589), declination: -14.0),
+        StateInfo(id: "NV", name: "Nevada", center: Coord(lat: 36.1699, lon: -115.1398), declination: 11.0),
+        StateInfo(id: "NM", name: "New Mexico", center: Coord(lat: 35.0844, lon: -106.6504), declination: 8.0),
+        StateInfo(id: "TN", name: "Tennessee", center: Coord(lat: 36.1627, lon: -86.7816), declination: -4.0),
     ]
 }
 
